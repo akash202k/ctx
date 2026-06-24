@@ -205,19 +205,17 @@ make fmt
 make lint
 ```
 
-## Comparison with Astrolark
+## Key Characteristics
 
-`ctx` is a complete rewrite of Astrolark in Go:
-
-| Feature | Astrolark (TypeScript) | ctx (Go) |
-|---------|------------------------|----------|
-| Format | `@@ALK` | `@@CTX` |
-| Language | Node.js/TypeScript | Go |
-| CLI | yargs | Cobra |
-| Performance | ~1s for 100 files | ~100ms for 100 files |
-| Graph Analysis | ❌ | ✅ (import/call graph + git co-change) |
-| Smart Selection | ❌ | ✅ (graph-based ranking) |
-| Binary Size | ~50MB (with Node.js) | ~8MB (static binary) |
+| Feature | ctx |
+|---------|-----|
+| Format | `@@CTX` |
+| Language | Go |
+| CLI | Cobra |
+| Performance | ~100ms for 100 files |
+| Graph Analysis | Import/call graph + git co-change |
+| Smart Selection | Graph-based ranking |
+| Binary Size | ~8MB (static binary) |
 
 ## License
 
