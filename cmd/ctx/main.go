@@ -336,6 +336,7 @@ func wizardRead(basePath, initialCommandString string) error {
 
 	var filterRules []snapshot.FilterRule
 
+addRules:
 	for {
 		var ruleType string
 		err := huh.NewSelect[string]().
@@ -375,12 +376,31 @@ func wizardRead(basePath, initialCommandString string) error {
 
 	// Handle default rules based on what user entered
 	if len(filterRules) == 0 {
-		// No rules at all - default include everything
-		filterRules = []snapshot.FilterRule{{Type: "include", Path: "."}}
-		color.Cyan("Default include rule: .")
-		commandString = fmt.Sprintf("%s --include %q", commandString, ".")
-		color.Yellow("Current command: %s", commandString)
-		fmt.Println()
+		// No rules at all - ask the user what they want
+		var defaultChoice string
+		err := huh.NewSelect[string]().
+			Title("No filter rules specified. What would you like to do?").
+			Options(
+				huh.NewOption("Include everything (.)", "all"),
+				huh.NewOption("Let me add rules now", "add"),
+			).
+			Value(&defaultChoice).
+			Run()
+		if err != nil {
+			return err
+		}
+
+		if defaultChoice == "all" {
+			// User explicitly wants everything
+			filterRules = []snapshot.FilterRule{{Type: "include", Path: "."}}
+			color.Cyan("Include rule: . (everything)")
+			commandString = fmt.Sprintf("%s --include %q", commandString, ".")
+			color.Yellow("Current command: %s", commandString)
+			fmt.Println()
+		} else {
+			// User wants to add rules - loop back
+			goto addRules
+		}
 	} else {
 		// Check if user only added exclude rules
 		hasInclude := false
