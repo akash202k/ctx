@@ -1,0 +1,66 @@
+# GitHub Actions workflow to build and release binaries
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          BINARY_NAME=ctx
+          if [ "$GOOS" = "windows" ]; then
+            BINARY_NAME=ctx.exe
+          fi
+          
+          go build -ldflags "-X main.Version=${{ steps.get_version.outputs.VERSION }} -s -w" \
+            -o $BINARY_NAME ./cmd/ctx
+          
+          # Create archive
+          ARCHIVE_NAME=ctx_${{ steps.get_version.outputs.VERSION }}_${GOOS}_${GOARCH}
+          
+          if [ "$GOOS" = "windows" ]; then
+            zip ${ARCHIVE_NAME}.zip $BINARY_NAME
+            echo "ASSET_PATH=${ARCHIVE_NAME}.zip" >> $GITHUB_ENV
+          else
+            tar czf ${ARCHIVE_NAME}.tar.gz $BINARY_NAME
+            echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
+          fi
+      
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ env.ASSET_PATH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

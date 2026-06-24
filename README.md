@@ -11,23 +11,27 @@ A powerful CLI tool for generating and applying context snapshots optimized for 
 
 ## Installation
 
-### One-Command Install
+> **Note:** Binary releases are coming soon! For now, Go is required for installation.
+
+### Quick Install (Requires Go)
 
 **macOS/Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/akash202k/ctx/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/akash202k/ctx/main/scripts/setup.sh | sh
+```
+
+**Or use go install directly:**
+```bash
+# Bypass proxy cache (recommended)
+GOPROXY=direct go install github.com/akash202k/ctx/cmd/ctx@latest
+
+# Or use default
+go install github.com/akash202k/ctx/cmd/ctx@latest
 ```
 
 **Windows (PowerShell):**
 ```powershell
 iwr -useb https://raw.githubusercontent.com/akash202k/ctx/main/scripts/install.ps1 | iex
-```
-
-### Alternative: Go Install
-
-If you have Go installed:
-```bash
-go install github.com/akash202k/ctx/cmd/ctx@latest
 ```
 
 ### Build from Source
@@ -37,6 +41,13 @@ git clone https://github.com/akash202k/ctx
 cd ctx
 make build
 sudo mv ctx /usr/local/bin/  # or add to PATH
+```
+
+### Coming Soon: Binary Releases
+
+Pre-built binaries (no Go required) will be available soon via:
+```bash
+curl -fsSL https://raw.githubusercontent.com/akash202k/ctx/main/scripts/install.sh | sh
 ```
 
 ## Usage
