@@ -16,8 +16,8 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build and Release
+  build:
+    name: Build Binaries
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -36,22 +36,15 @@ jobs:
         with:
           go-version: '1.26'
       
-      - name: Get version and release type
-        id: get_version
+      - name: Determine version
+        id: version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # Manual trigger - use provided version tag
             VERSION="${{ github.event.inputs.version }}"
-            IS_PRERELEASE=false
-            echo "Creating versioned release: $VERSION"
           else
-            # Push to main - use 'latest' prerelease
             VERSION="latest"
-            IS_PRERELEASE=true
-            echo "Creating rolling 'latest' prerelease"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "IS_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_OUTPUT
       
       - name: Build binary
         env:
@@ -63,33 +56,69 @@ jobs:
             BINARY_NAME=ctx.exe
           fi
           
-          go build -ldflags "-X main.Version=${{ steps.get_version.outputs.VERSION }} -s -w" \
+          go build -ldflags "-X main.Version=${{ steps.version.outputs.VERSION }} -s -w" \
             -o $BINARY_NAME ./cmd/ctx
           
           # Create archive
-          ARCHIVE_NAME=ctx_${{ steps.get_version.outputs.VERSION }}_${GOOS}_${GOARCH}
+          ARCHIVE_NAME=ctx_${{ steps.version.outputs.VERSION }}_${GOOS}_${GOARCH}
           
           if [ "$GOOS" = "windows" ]; then
             zip ${ARCHIVE_NAME}.zip $BINARY_NAME
-            echo "ASSET_PATH=${ARCHIVE_NAME}.zip" >> $GITHUB_ENV
           else
             tar czf ${ARCHIVE_NAME}.tar.gz $BINARY_NAME
-            echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
           fi
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctx_${{ steps.version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ctx_${{ steps.version.outputs.VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}.*
+          retention-days: 7
+  
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: release-approval
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Determine version and release type
+        id: release_info
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            IS_PRERELEASE=false
+          else
+            VERSION="latest"
+            IS_PRERELEASE=true
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "IS_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: ctx_${{ steps.release_info.outputs.VERSION }}_*
+          merge-multiple: true
       
       - name: Create and push tag for versioned release
         if: github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a ${{ steps.get_version.outputs.VERSION }} -m "Release ${{ steps.get_version.outputs.VERSION }}"
-          git push origin ${{ steps.get_version.outputs.VERSION }}
+          git tag -a ${{ steps.release_info.outputs.VERSION }} -m "Release ${{ steps.release_info.outputs.VERSION }}"
+          git push origin ${{ steps.release_info.outputs.VERSION }}
       
-      - name: Upload release asset
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          files: ${{ env.ASSET_PATH }}
-          prerelease: ${{ steps.get_version.outputs.IS_PRERELEASE }}
+          tag_name: ${{ steps.release_info.outputs.VERSION }}
+          files: artifacts/*
+          prerelease: ${{ steps.release_info.outputs.IS_PRERELEASE }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
