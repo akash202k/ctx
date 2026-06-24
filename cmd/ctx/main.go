@@ -266,7 +266,14 @@ func runWizard(cmd *cobra.Command, args []string) error {
 
 	welcomeText := boxStyle.Render("Welcome to ctx!")
 	fmt.Println(welcomeText)
+	
+	// Author attribution (subtle, small)
+	authorStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true)
+	fmt.Println(authorStyle.Render("by Akash (github.com/akash202k)"))
 	fmt.Println()
+	
 	fmt.Println("ctx helps you generate context for your project so you can")
 	fmt.Println("easily ask questions about it using an LLM.")
 	fmt.Println()
