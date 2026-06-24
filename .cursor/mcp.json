@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "context-engine": {
+      "command": "/Users/akash/akash/repos/ctx/ctxengine-mcp"
+    }
+  }
+}

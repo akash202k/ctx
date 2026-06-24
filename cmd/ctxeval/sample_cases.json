@@ -1,0 +1,37 @@
+[
+  {
+    "name": "graph-walk-scoring",
+    "task": "how does graph walk and scoring work",
+    "entry_point": "internal/score/score.go",
+    "repo_root": "/Users/akash/akash/repos/ctx",
+    "ground_truth": [
+      "internal/score/score.go",
+      "internal/score/seeds.go",
+      "internal/graph/graph.go",
+      "internal/graph/build.go"
+    ]
+  },
+  {
+    "name": "budget-packing",
+    "task": "how does token budget packing and signature_only mode work",
+    "entry_point": "internal/pack/pack.go",
+    "repo_root": "/Users/akash/akash/repos/ctx",
+    "ground_truth": [
+      "internal/pack/pack.go",
+      "internal/score/score.go",
+      "internal/graph/graph.go",
+      "internal/parse/parser.go"
+    ]
+  },
+  {
+    "name": "file-enumeration",
+    "task": "how does file walking and gitignore filtering work",
+    "entry_point": "internal/walker/walker.go",
+    "repo_root": "/Users/akash/akash/repos/ctx",
+    "ground_truth": [
+      "internal/walker/walker.go",
+      "internal/ignore/ignore.go",
+      "internal/fileinfo/binary.go"
+    ]
+  }
+]
