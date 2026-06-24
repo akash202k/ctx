@@ -46,26 +46,62 @@ install_binary() {
     cd "$TMP_DIR"
     
     if curl -sL "$DOWNLOAD_URL" | tar xz; then
-        # Install to /usr/local/bin (requires sudo) or ~/bin
+        # Try installation locations in order of preference
         if [ -w "/usr/local/bin" ]; then
             mv ctx /usr/local/bin/
             echo "✓ ctx installed to /usr/local/bin/ctx"
-        elif [ -d "$HOME/bin" ]; then
-            mv ctx "$HOME/bin/"
-            echo "✓ ctx installed to $HOME/bin/ctx"
-            echo "⚠ Make sure $HOME/bin is in your PATH"
+            cd - > /dev/null
+            rm -rf "$TMP_DIR"
+            return 0
+        elif sudo -n true 2>/dev/null; then
+            # Has passwordless sudo
+            sudo mv ctx /usr/local/bin/
+            echo "✓ ctx installed to /usr/local/bin/ctx"
+            cd - > /dev/null
+            rm -rf "$TMP_DIR"
+            return 0
         else
+            # Install to user's home bin
             mkdir -p "$HOME/bin"
             mv ctx "$HOME/bin/"
             echo "✓ ctx installed to $HOME/bin/ctx"
-            echo ""
-            echo "Add this to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
-            echo "  export PATH=\"\$HOME/bin:\$PATH\""
+            
+            # Auto-add to PATH based on shell
+            SHELL_CONFIG=""
+            if [ -n "$ZSH_VERSION" ] || [ "$SHELL" = "/bin/zsh" ] || [ "$SHELL" = "/usr/bin/zsh" ]; then
+                SHELL_CONFIG="$HOME/.zshrc"
+            elif [ -n "$BASH_VERSION" ] || [ "$SHELL" = "/bin/bash" ] || [ "$SHELL" = "/usr/bin/bash" ]; then
+                SHELL_CONFIG="$HOME/.bashrc"
+            fi
+            
+            # Check if PATH already contains $HOME/bin
+            if ! echo "$PATH" | grep -q "$HOME/bin"; then
+                if [ -n "$SHELL_CONFIG" ] && [ -f "$SHELL_CONFIG" ]; then
+                    echo "" >> "$SHELL_CONFIG"
+                    echo "# Added by ctx installer" >> "$SHELL_CONFIG"
+                    echo 'export PATH="$HOME/bin:$PATH"' >> "$SHELL_CONFIG"
+                    echo ""
+                    echo "✓ Added $HOME/bin to PATH in $SHELL_CONFIG"
+                    echo ""
+                    echo "Run this to use ctx immediately:"
+                    echo "  source $SHELL_CONFIG"
+                    echo ""
+                    echo "Or restart your terminal"
+                else
+                    echo ""
+                    echo "⚠ Add this to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
+                    echo '  export PATH="$HOME/bin:$PATH"'
+                    echo ""
+                    echo "Then restart your shell or run: source ~/.zshrc"
+                fi
+            else
+                echo "✓ $HOME/bin is already in your PATH"
+            fi
+            
+            cd - > /dev/null
+            rm -rf "$TMP_DIR"
+            return 0
         fi
-        
-        cd - > /dev/null
-        rm -rf "$TMP_DIR"
-        return 0
     else
         echo "⚠ Failed to download binary"
         cd - > /dev/null
