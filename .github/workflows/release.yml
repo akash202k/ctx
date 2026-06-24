@@ -3,6 +3,8 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -28,11 +30,20 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.26'
       
-      - name: Get version
+      - name: Get version and release type
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            IS_PRERELEASE=false
+          else
+            VERSION="latest"
+            IS_PRERELEASE=true
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "IS_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_OUTPUT
       
       - name: Build binary
         env:
@@ -61,6 +72,8 @@ jobs:
       - name: Upload release asset
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
           files: ${{ env.ASSET_PATH }}
+          prerelease: ${{ steps.get_version.outputs.IS_PRERELEASE }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

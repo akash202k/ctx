@@ -110,9 +110,23 @@ install_binary() {
     fi
 }
 
-# Try Go install first if available
+# Try binary download first (ensures users get latest from main)
+echo "Installing ctx..."
+if install_binary; then
+    echo ""
+    echo "Usage:"
+    echo "  ctx           - Interactive wizard (default)"
+    echo "  ctx read      - Generate repository snapshot"
+    echo "  ctx edit      - Apply edits from snapshot"
+    echo "  ctx select    - Select relevant files for a task"
+    echo ""
+    echo "Run 'ctx --help' for more information."
+    exit 0
+fi
+
+# Binary download failed, try go install as fallback
 if command -v go >/dev/null 2>&1; then
-    echo "✓ Go detected, installing via 'go install'..."
+    echo "⚠ Binary download failed, trying 'go install'..."
     
     # Try direct install first (bypasses proxy cache issues)
     if GOPROXY=direct go install github.com/$REPO/cmd/ctx@latest 2>/dev/null || \
@@ -141,26 +155,7 @@ if command -v go >/dev/null 2>&1; then
         echo ""
         echo "Then restart your shell or run: source ~/.bashrc"
         exit 0
-    else
-        echo "⚠ go install failed, trying binary download..."
-        if install_binary; then
-            exit 0
-        fi
     fi
-fi
-
-# Go not available, try binary
-echo "⚠ Go not found, attempting binary download..."
-if install_binary; then
-    echo ""
-    echo "Usage:"
-    echo "  ctx           - Interactive wizard (default)"
-    echo "  ctx read      - Generate repository snapshot"
-    echo "  ctx edit      - Apply edits from snapshot"
-    echo "  ctx select    - Select relevant files for a task"
-    echo ""
-    echo "Run 'ctx --help' for more information."
-    exit 0
 fi
 
 # Binary download failed
