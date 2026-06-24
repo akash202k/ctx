@@ -17,7 +17,15 @@ try {
 if ($goVersion) {
     Write-Host "✓ Go detected, installing via 'go install'..." -ForegroundColor Green
     
+    # Try direct install first (bypasses proxy cache issues)
+    $env:GOPROXY = "direct"
     go install github.com/$REPO/cmd/ctx@latest
+    
+    if ($LASTEXITCODE -ne 0) {
+        # Fallback to default proxy
+        Remove-Item Env:\GOPROXY
+        go install github.com/$REPO/cmd/ctx@latest
+    }
     
     if ($LASTEXITCODE -eq 0) {
         # Get GOPATH
