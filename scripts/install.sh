@@ -28,6 +28,9 @@ esac
 # Check if Go is installed
 if command -v go >/dev/null 2>&1; then
     echo "✓ Go detected, installing via 'go install'..."
+    
+    # Try direct install first (bypasses proxy cache issues)
+    GOPROXY=direct go install github.com/$REPO/cmd/ctx@latest || \
     go install github.com/$REPO/cmd/ctx@latest
     
     # Check if installation succeeded
