@@ -5,8 +5,12 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.1.3)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -35,12 +39,16 @@ jobs:
       - name: Get version and release type
         id: get_version
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual trigger - use provided version tag
+            VERSION="${{ github.event.inputs.version }}"
             IS_PRERELEASE=false
+            echo "Creating versioned release: $VERSION"
           else
+            # Push to main - use 'latest' prerelease
             VERSION="latest"
             IS_PRERELEASE=true
+            echo "Creating rolling 'latest' prerelease"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "IS_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_OUTPUT
@@ -68,6 +76,14 @@ jobs:
             tar czf ${ARCHIVE_NAME}.tar.gz $BINARY_NAME
             echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
           fi
+      
+      - name: Create and push tag for versioned release
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a ${{ steps.get_version.outputs.VERSION }} -m "Release ${{ steps.get_version.outputs.VERSION }}"
+          git push origin ${{ steps.get_version.outputs.VERSION }}
       
       - name: Upload release asset
         uses: softprops/action-gh-release@v1
