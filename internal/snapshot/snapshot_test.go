@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/akash202k/ctx/internal/walker"
@@ -65,27 +66,13 @@ func TestApplyFilters_PathSpecificity(t *testing.T) {
 	filtered, _ := applyFilters(files, rules, "/test")
 
 	// Should include src/app.go but exclude src/tests/unit.go
-	// vendor/pkg.go should also be included (defaultInclude: true)
-	if len(filtered) != 2 {
-		t.Errorf("Expected 2 files, got %d", len(filtered))
+	// vendor/pkg.go should be excluded (include-only rules, no match)
+	if len(filtered) != 1 {
+		t.Errorf("Expected 1 file, got %d", len(filtered))
 	}
 
-	foundApp := false
-	foundTests := false
-	for _, f := range filtered {
-		if f.RelPath == "src/app.go" {
-			foundApp = true
-		}
-		if f.RelPath == "src/tests/unit.go" {
-			foundTests = true
-		}
-	}
-
-	if !foundApp {
-		t.Error("src/app.go should be included")
-	}
-	if foundTests {
-		t.Error("src/tests/unit.go should be excluded")
+	if len(filtered) > 0 && filtered[0].RelPath != "src/app.go" {
+		t.Errorf("Expected only src/app.go, got %s", filtered[0].RelPath)
 	}
 }
 
@@ -101,26 +88,13 @@ func TestApplyFilters_PrefixBoundary(t *testing.T) {
 	filtered, _ := applyFilters(files, rules, "/test")
 
 	// Should include src/main.go but NOT srcfoo/other.go
-	// However, due to defaultInclude: true, srcfoo/other.go is also included
-	// when it doesn't match any rule
-	foundSrc := false
-	foundSrcfoo := false
-	for _, f := range filtered {
-		if f.RelPath == "src/main.go" {
-			foundSrc = true
-		}
-		if f.RelPath == "srcfoo/other.go" {
-			foundSrcfoo = true
-		}
+	// With include-only rules, files that don't match should be excluded
+	if len(filtered) != 1 {
+		t.Errorf("Expected 1 file, got %d", len(filtered))
 	}
-
-	if !foundSrc {
-		t.Error("src/main.go should be included")
-	}
-	// Note: srcfoo/other.go is included because of defaultInclude: true
-	// This matches Astrolark behavior
-	if !foundSrcfoo {
-		t.Error("srcfoo/other.go should be included (defaultInclude: true)")
+	
+	if len(filtered) > 0 && filtered[0].RelPath != "src/main.go" {
+		t.Errorf("Expected src/main.go, got %s", filtered[0].RelPath)
 	}
 }
 
@@ -319,4 +293,50 @@ func TestApplyFilters_NestedDirectories(t *testing.T) {
 			t.Error("a/b/c/file.go should be excluded")
 		}
 	}
+}
+
+// TestApplyFilters_IncludeOnly tests that include-only rules exclude unmatched files
+func TestApplyFilters_IncludeOnly(t *testing.T) {
+	t.Run("Single file include", func(t *testing.T) {
+		files := []walker.FileEntry{
+			{RelPath: "app-manifest.yaml", Content: "version: 1"},
+			{RelPath: "docs/README.md", Content: "# Docs"},
+			{RelPath: "src/main.go", Content: "package main"},
+		}
+		rules := []FilterRule{
+			{Type: "include", Path: "app-manifest.yaml"},
+		}
+		
+		filtered, _ := applyFilters(files, rules, "/test")
+		
+		if len(filtered) != 1 {
+			t.Errorf("Expected 1 file, got %d", len(filtered))
+		}
+		if len(filtered) > 0 && filtered[0].RelPath != "app-manifest.yaml" {
+			t.Errorf("Expected app-manifest.yaml, got %s", filtered[0].RelPath)
+		}
+	})
+	
+	t.Run("Directory include", func(t *testing.T) {
+		files := []walker.FileEntry{
+			{RelPath: "docs/README.md", Content: "# Docs"},
+			{RelPath: "docs/guide.md", Content: "# Guide"},
+			{RelPath: "src/main.go", Content: "package main"},
+			{RelPath: "test.txt", Content: "test"},
+		}
+		rules := []FilterRule{
+			{Type: "include", Path: "docs"},
+		}
+		
+		filtered, _ := applyFilters(files, rules, "/test")
+		
+		if len(filtered) != 2 {
+			t.Errorf("Expected 2 files, got %d", len(filtered))
+		}
+		for _, f := range filtered {
+			if !strings.HasPrefix(f.RelPath, "docs/") {
+				t.Errorf("File %s should not be included", f.RelPath)
+			}
+		}
+	})
 }

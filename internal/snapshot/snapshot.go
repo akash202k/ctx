@@ -91,31 +91,58 @@ func applyFilters(files []walker.FileEntry, rules []FilterRule, basePath string)
 		return len(sortedRules[i].Path) > len(sortedRules[j].Path)
 	})
 
+	// Determine default behavior based on rule types:
+	// - If there are ANY specific include rules (no wildcard), default to exclude
+	// - If only exclude rules or wildcard include, default to include
+	hasWildcardInclude := false
+	hasSpecificInclude := false
+	for _, rule := range sortedRules {
+		if rule.Type == "include" {
+			if rule.Path == "." {
+				hasWildcardInclude = true
+			} else {
+				hasSpecificInclude = true
+			}
+		}
+	}
+
 	included := make(map[string]bool)
 	ignored := make(map[string][]string)
 
 	for _, file := range files {
-		shouldInclude := true // Default: include when no rule matches (Astrolark defaultInclude: true)
+		// Default behavior:
+		// - If there are specific include rules (no wildcard): exclude by default
+		// - If wildcard include or only exclude rules: include by default
+		shouldInclude := hasWildcardInclude || !hasSpecificInclude
+		matched := false
 
 		// First matching rule wins (after sorting by path length)
 		for _, rule := range sortedRules {
-			matched := false
+			ruleMatched := false
 
 			if rule.Path == "." {
 				// Wildcard matches everything
-				matched = true
+				ruleMatched = true
 			} else if file.RelPath == rule.Path {
 				// Exact match
-				matched = true
+				ruleMatched = true
 			} else if strings.HasPrefix(file.RelPath, rule.Path+string(filepath.Separator)) {
 				// Separator-aware prefix matching (e.g., "src" matches "src/main.go" but not "srcfoo/bar.go")
-				matched = true
+				ruleMatched = true
 			}
 
-			if matched {
+			if ruleMatched {
 				shouldInclude = (rule.Type == "include")
+				matched = true
 				break // First match wins
 			}
+		}
+
+		// If no rule matched:
+		// - With specific include rules: exclude by default
+		// - With only exclude rules or wildcard: include by default
+		if !matched && hasSpecificInclude && !hasWildcardInclude {
+			shouldInclude = false
 		}
 
 		if shouldInclude {

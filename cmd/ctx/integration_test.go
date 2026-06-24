@@ -307,10 +307,9 @@ func TestCLI_ReadPrefixBoundary(t *testing.T) {
 		t.Error("src/main.go should be included")
 	}
 
-	// srcfoo/other.go should also be included due to defaultInclude: true
-	// (it doesn't match "src" because of separator-aware matching)
-	// This matches Astrolark behavior
-	if !strings.Contains(output, `@@CTX<FILE path="srcfoo/other.go">`) {
-		t.Error("srcfoo/other.go should be included (defaultInclude: true, no matching rule)")
+	// srcfoo/other.go should be excluded (include-only rule, no match)
+	// This is the CORRECT behavior: include-only rules exclude unmatched files
+	if strings.Contains(output, `@@CTX<FILE path="srcfoo/other.go">`) {
+		t.Error("srcfoo/other.go should be excluded (include-only rule, no match)")
 	}
 }
